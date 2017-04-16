@@ -1,19 +1,28 @@
-package sample;
+package sample.controller;
 
 import javafx.event.ActionEvent;
-import javafx.fxml.FXML;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import javafx.fxml.FXMLLoader;
+import javafx.fxml.Initializable;
+import javafx.scene.Node;
+import javafx.scene.control.*;
+import javafx.scene.layout.GridPane;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import sample.Main;
+import sample.bean.KeyStore;
 
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URL;
+import java.util.ResourceBundle;
 
-public class Controller {
+public class KeyStoreBuildController extends GridPane implements Initializable{
 
     private String jdkPath;
     private String keytoolPath;
@@ -29,7 +38,8 @@ public class Controller {
     public TextField creatorName;
     public TextField keyPassword;
 
-    public Controller() {
+    public KeyStoreBuildController() {
+
         this.jdkPath = getJdkPath(System.getProperty("java.home"));
         this.keytoolPath = getKeytoolPath(this.jdkPath);
     }
@@ -95,7 +105,7 @@ public class Controller {
         sb.append(" -keypass");
         sb.append(" " + aliasPassword.getText());
         sb.append(" -dname");
-        sb.append(" \"CN=" + creatorName.getText() + ",OU=,O=,L=,S=,C=\"");
+        sb.append(" CN=" + creatorName.getText() + ",OU=,O=,L=,S=,C=");
         sb.append(" -keyalg RSA");
         sb.append(" -keysize 2048");
         sb.append(" -validity");
@@ -103,7 +113,13 @@ public class Controller {
 
         actionTarget.setText(sb.toString());
 
-        executeCmd(sb.toString());
+        String ret = executeCmd(sb.toString());
+
+        if (!"".equals(ret)) {
+            errorMessageDialog(ret);
+        } else {
+            informationMessageDialog("成功");
+        }
     }
 
     private boolean checkParamsOfNull() {
@@ -139,7 +155,7 @@ public class Controller {
         BufferedReader br = null;
         try {
             Process p = Runtime.getRuntime().exec(cmd);
-            br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            br = new BufferedReader(new InputStreamReader(p.getInputStream(), "GBK"));
             String line = null;
             StringBuilder sb = new StringBuilder();
             while ((line = br.readLine()) != null) {
@@ -149,7 +165,46 @@ public class Controller {
             return sb.toString();
         } catch (IOException e) {
             e.printStackTrace();
-            return "";
+            return e.getMessage();
         }
+
+    }
+
+    private void errorMessageDialog(String msg) {
+        Alert alert = new Alert(Alert.AlertType.ERROR, msg);
+        alert.setHeaderText(null);
+        alert.initOwner(mStage);
+        alert.show();
+    }
+
+    private void informationMessageDialog(String msg) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION, msg);
+        alert.setHeaderText(null);
+        alert.initOwner(mStage);
+        alert.show();
+    }
+
+    private void saveKeyStoreInfoToFile(File file, String aliasName, String aliasPassword, String storePassword) {
+        try {
+            JAXBContext context = JAXBContext.newInstance(KeyStore.class);
+            Marshaller marshaller = context.createMarshaller();
+            marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+
+            KeyStore keyStore = new KeyStore();
+            keyStore.setAliasName(aliasName);
+            keyStore.setAliasPassword(aliasPassword);
+            keyStore.setStorePassword(storePassword);
+
+            marshaller.marshal(keyStore, file);
+
+
+        } catch (JAXBException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+
     }
 }
